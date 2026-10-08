@@ -1,0 +1,9 @@
+cache/*
+data/*
+.DS_Store
+__pycache__
+*.safetensors
+*.model
+*.vocab
+*.txt
+*.csv

@@ -8,6 +8,15 @@ from loader import *
 
 train_epochs = 10
 
+# 第 src 列为源文， 第 tgt 列为目标文
+train_file = "data/data_train.csv"
+
+data = SrcTgtData(fpath=train_file,
+                  sp_model_src=sp_model_src, 
+                  sp_model_tgt=sp_model_tgt, 
+                  batch_size=BATCH_SIZE)
+
+
 def loss_fn(model, src, tgt_in, tgt_label, src_mask, tgt_mask):
     logits = model(src, tgt_in, src_mask, tgt_mask, src_mask)
     B, T, V = logits.shape
@@ -38,7 +47,7 @@ def train():
     for epoch in range(train_epochs):
         t1 = time.perf_counter()
         for i,batch in enumerate(train_data):
-            
+
             loss, grads = loss_and_grad(model, batch.src, batch.tgt_in, batch.tgt_label,batch.src_mask,batch.tgt_mask)
             # 梯度裁剪，防止爆炸
             grads, _ = optim.clip_grad_norm(grads, max_norm=1.0)
@@ -55,14 +64,22 @@ def train():
             model.save_weights(model_path)
 
 
-if len(sys.argv) > 1:
-    arg_1 = sys.argv[1]
-    print(arg_1)
-    if arg_1.isdigit():
-        train_epochs = int(arg_1)
+#
+if __name__ == "__main__":   
+    if len(sys.argv) == 1:
+        train_epochs = 1
+    #
+    if len(sys.argv) == 2:
+        arg_1 = sys.argv[1]
+        print(arg_1)
+        if arg_1.isdigit():
+            train_epochs = int(arg_1)
+    #
     if os.path.exists(model_path):
         print("model is loading ...")
         model.load_weights(model_path)
+
+    print(f"train_epochs: {train_epochs}")
     train()
 
 

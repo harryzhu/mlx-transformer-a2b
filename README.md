@@ -1,2 +1,6 @@
 # mlx-transformer-a2b
-MLX Transformer, Train any data A, Generate data B accordingly. 提供任意数据集A，训练后，生成目标内容B。 机器翻译、诗歌撰写、对联生成 ...
+`MLX`版的`Transformer`通用模版, 用户只需要准备 `.csv`格式的任意数据集，无需修改代码，直接就可以开始训练，然后就可以开始推理. 
+
+提供任意数据集A，训练后，生成目标内容B。 
+
+机器翻译、诗歌撰写、对联生成 ...

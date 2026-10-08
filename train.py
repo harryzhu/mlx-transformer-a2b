@@ -38,14 +38,7 @@ def train():
     for epoch in range(train_epochs):
         t1 = time.perf_counter()
         for i,batch in enumerate(train_data):
-            # print("src", batch.src, batch.src.shape)
-            # print("src_mask: ",batch.src_mask, batch.src_mask.shape)
-            # print("tgt_in", batch.tgt_in, batch.tgt_in.shape)
-            # print("tgt_mask: ",batch.tgt_mask, batch.tgt_mask.shape)
-            # print("tgt_label: ",batch.tgt_label[0].tolist(), batch.tgt_label.shape)
-            # print("ntokens: ",batch.ntokens, batch.ntokens.shape)
-            # print("\n\n----------------\n\n")
-
+            
             loss, grads = loss_and_grad(model, batch.src, batch.tgt_in, batch.tgt_label,batch.src_mask,batch.tgt_mask)
             # 梯度裁剪，防止爆炸
             grads, _ = optim.clip_grad_norm(grads, max_norm=1.0)

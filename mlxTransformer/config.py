@@ -9,5 +9,7 @@ DROPOUT = 0.1                       # dropout比例
 PAD = 0                             # padding占位符的索引
 UNK = 1                             # 未登录词标识符的索引
 
+BATCH_SIZE = 20
+
 VOCAB_SIZE_SRC = 10000
 VOCAB_SIZE_TGT = 10000

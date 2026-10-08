@@ -11,7 +11,10 @@ train_file = "data/data_train.csv"
 sp_model_src = "cache/vocab_src.model"
 sp_model_tgt = "cache/vocab_tgt.model"
 
-data = SrcTgtData(fpath=train_file,sp_model_src=sp_model_src, sp_model_tgt=sp_model_tgt, batch_size=20)
+data = SrcTgtData(fpath=train_file,
+                  sp_model_src=sp_model_src, 
+                  sp_model_tgt=sp_model_tgt, 
+                  batch_size=BATCH_SIZE)
 
 spm_src = spm.SentencePieceProcessor(model_file=sp_model_src)
 spm_tgt = spm.SentencePieceProcessor(model_file=sp_model_tgt)

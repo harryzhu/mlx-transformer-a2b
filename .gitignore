@@ -1,9 +1,12 @@
-cache/*
-data/*
+cache/*.model
+cache/*.vocab
+cache/*.txt
+data/*.csv
+data/*.json
+data/*.jsonl
 .DS_Store
 __pycache__
 *.safetensors
 *.model
 *.vocab
-*.txt
-*.csv
+

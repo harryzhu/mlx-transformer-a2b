@@ -4,7 +4,6 @@ import json
 import pickle
 import numpy as np
 import sentencepiece as spm
-#from .padding import *
 from .batch import *
 
 class SrcTgtData():
@@ -62,8 +61,8 @@ class SrcTgtData():
         idx_list = np.arange(0, len(src), batch_size)
         if shuffle:
             np.random.shuffle(idx_list)
-            print("shuffle: batches: ", len(idx_list))
-        
+
+        print("batches: ", len(idx_list))
         batch_idxes = []
         for idx in idx_list:
             batch_idxes.append(np.arange(idx, min(idx+batch_size, len(src))))

@@ -11,9 +11,12 @@ sp_model_tgt = "cache/vocab_tgt.model"
 spm_src = spm.SentencePieceProcessor(model_file=sp_model_src)
 spm_tgt = spm.SentencePieceProcessor(model_file=sp_model_tgt)
 
+#model = TransformerModelSin()
+model = TransformerModelRoPE()
+
 #model_path = "test_sp_sinpe.safetensors"
 model_path = "test_sp_rope.safetensors"
 
-#model = TransformerModelSin()
-model = TransformerModelRoPE()
+if os.path.exists(model_path):
+    model.load_weights(model_path)
 

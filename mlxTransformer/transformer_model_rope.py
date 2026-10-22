@@ -1,6 +1,7 @@
 import math
 import mlx.core as mx
 import mlx.nn as nn
+import copy
 from .config import *
 
 def bhld_check(m, B, H, L, Dh):
@@ -53,6 +54,40 @@ class RoPE_LLaMA3(nn.Module):
         rx = mx.concatenate([-x2, x1], axis=-1) # [B,H,L, head_dim]
         return x * cos + rx * sin
 
+import mlx.core as mx
+import mlx.nn as nn
+
+class CrossAttention(nn.Module):
+    def __init__(self, dim: int, num_heads: int):
+        super().__init__()
+        self.num_heads = num_heads
+        self.dim = dim
+        self.head_dim = dim // num_heads
+        self.scale = 1.0 / math.sqrt(self.head_dim)
+
+        self.q_proj = nn.Linear(dim, dim)
+        self.k_proj = nn.Linear(dim, dim)
+        self.v_proj = nn.Linear(dim, dim)
+        self.out_proj = nn.Linear(dim, dim)
+
+    def __call__(self, q, kv, mask = None):
+        B, Lq, _ = q.shape
+        B, Lk, _ = kv.shape
+
+        q = self.q_proj(q)
+        k = self.k_proj(kv)
+        v = self.v_proj(kv)
+
+        # 分头
+        q = q.reshape(B, Lq, self.num_heads, self.head_dim).transpose(0,2,1,3)
+        k = k.reshape(B, Lk, self.num_heads, self.head_dim).transpose(0,2,1,3)
+        v = v.reshape(B, Lk, self.num_heads, self.head_dim).transpose(0,2,1,3)
+
+        attn = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask=mask)
+        attn = attn.transpose(0,2,1,3).reshape(B, Lq, self.dim)
+        return self.out_proj(attn)
+
+
 class EncoderLayer(nn.Module):
     """Encoder Self-Attn：正弦PE，不用RoPE"""
     def __init__(self, norm_first: bool):
@@ -62,26 +97,27 @@ class EncoderLayer(nn.Module):
         self.ffn = nn.Sequential(
             nn.Linear(DIM_MODEL, DIM_MODEL * 4),
             nn.GELU(),
-            nn.Dropout(DROPOUT),
             nn.Linear(DIM_MODEL * 4, DIM_MODEL),
-            nn.Dropout(DROPOUT),
         )
         self.norm1 = nn.LayerNorm(DIM_MODEL)
         self.norm2 = nn.LayerNorm(DIM_MODEL)
         self.dropout1 = nn.Dropout(DROPOUT)
+        self.dropout2 = nn.Dropout(DROPOUT)
 
     def __call__(self, x, mask):
         # Pre-norm
         if self.norm_first:
             h = self.norm1(x)
-            h = self.attn(h, h, h, mask)
+            h = self.attn(h, h, h, mask=mask)
             x = x + self.dropout1(h)
             h = self.norm2(x)
-            x = x + self.ffn(h)
+            h = self.ffn(h)
+            x = x + self.dropout2(h)
         else:
-            h = self.attn(x, x, x, mask)
+            h = self.attn(x, x, x, mask=mask)
             x = self.norm1(x + self.dropout1(h))
-            x = self.norm2(x + self.ffn(x))
+            h = self.ffn(x)
+            x = self.norm2(x + self.dropout2(h))
         return x
 
 class DecoderLayer(nn.Module):
@@ -97,25 +133,26 @@ class DecoderLayer(nn.Module):
         self.dims = DIM_MODEL
         self.num_heads = NUM_HEAD
         self.head_dim = DIM_MODEL // NUM_HEAD
-        self.var_sqrt_head_dim = math.sqrt(self.head_dim)
+        self.scale = math.sqrt(self.head_dim)
         # Self Attention
         self.w_qkv = nn.Linear(DIM_MODEL, DIM_MODEL * 3)
         # Cross Attention
         self.cross_attn = nn.MultiHeadAttention(DIM_MODEL, NUM_HEAD)
+        #self.cross_attn = CrossAttention(DIM_MODEL, NUM_HEAD)
         self.ffn = nn.Sequential(
             nn.Linear(DIM_MODEL, DIM_MODEL * 4),
             nn.GELU(),
-            nn.Dropout(DROPOUT),
             nn.Linear(DIM_MODEL * 4, DIM_MODEL),
-            nn.Dropout(DROPOUT),
         )
         self.norm1 = nn.RMSNorm(DIM_MODEL)
         self.norm2 = nn.RMSNorm(DIM_MODEL)
         self.norm3 = nn.RMSNorm(DIM_MODEL)     
         self.dropout1 = nn.Dropout(DROPOUT)
+        self.dropout2 = nn.Dropout(DROPOUT)
+        self.dropout3 = nn.Dropout(DROPOUT)
 
     
-    def self_attn_rope(self, x, mask):
+    def self_attn_rope(self, x, mask, kv_cache = None, offset = 0):
         B, L, D = x.shape
         qkv = self.w_qkv(x)
         # print("1.qkv:", qkv.shape) #[B, L, DIM_MODEL*3]
@@ -143,50 +180,62 @@ class DecoderLayer(nn.Module):
         
         
         # RoPE 只作用在 Q、K
-        q = self.rope(q)
-        k = self.rope(k)
+        q = self.rope(q, offset=offset)
+        k = self.rope(k, offset=offset)
 
+        new_cache = None
+        if kv_cache is not None:
+            prev_k, prev_v = kv_cache
+            k = mx.concatenate([prev_k, k], axis=2)
+            v = mx.concatenate([prev_v, v], axis=2)
+            new_cache = (k, v)
+            
         # MHA score
         #attn_out = mx.fast.scaled_dot_product_attention(q, k, v, mask=mask)
         # scaled_dot_product_attention 只支持 additive_mask, 不支持 additive_mask + pad mask
         # 所以此处改写法, 速度比 mx.fast.scaled_dot_product_attention 慢一些
-        attn_scores = q @ k.transpose(0,1,3,2) / self.var_sqrt_head_dim # [B, H, L, L]
-        if DEBUG:
-            bhld_check(attn_scores, B, self.num_heads, L, L)
-            bhld_check(mask, B, 1, L, L)
+        attn_scores = q @ k.transpose(0,1,3,2) / self.scale # [B, H, L, L]
+        # if DEBUG:
+        #     bhld_check(attn_scores, B, self.num_heads, L, L)
+        #     bhld_check(mask, B, 1, L, L)
         attn_scores = attn_scores + mask
         attn_weights = mx.softmax(attn_scores, axis=-1)
         attn_out = attn_weights @ v
-        if DEBUG:
-            bhld_check(attn_out, B, self.num_heads, L, self.head_dim)
+        # if DEBUG:
+        #     bhld_check(attn_out, B, self.num_heads, L, self.head_dim)
         
         attn_out = attn_out.transpose(0,2,1,3).reshape(B, L, D)
+
         if DEBUG:
             bld_check(attn_out, B, L, DIM_MODEL)
-        return self.dropout1(attn_out)
+        return self.dropout1(attn_out), new_cache
 
-    def __call__(self, x, memory, tgt_mask, memory_mask):
+    def __call__(self, x, memory, tgt_mask, memory_mask, kv_cache=None, offset=0):
         if self.norm_first:
             # Decoder Self-Attention with RoPE
             h = self.norm1(x)
-            h = self.self_attn_rope(h, tgt_mask)
+            h, new_cache = self.self_attn_rope(h, tgt_mask, kv_cache=kv_cache, offset=offset)
             x = x + h
 
             # Cross Attention
             h = self.norm2(x)
-            h = self.cross_attn(h, memory, memory, memory_mask)
-            x = x + self.dropout1(h)
+            h = self.cross_attn(h, memory, memory, mask=memory_mask)
+            x = x + self.dropout2(h)
 
             # FFN
             h = self.norm3(x)
-            x = x + self.ffn(h)
+            h = self.ffn(h)
+            x = x + self.dropout3(h)
         else:
-            h = self.self_attn_rope(x, tgt_mask)
+            h, new_cache = self.self_attn_rope(x, tgt_mask, kv_cache=kv_cache, offset=offset)
             x = self.norm1(x + h)
-            h = self.cross_attn(x, memory, memory, memory_mask)
-            x = self.norm2(x + self.dropout1(h))
-            x = self.norm3(x + self.ffn(x))
-        return x
+            #
+            h = self.cross_attn(x, memory, memory, mask=memory_mask)
+            x = self.norm2(x + self.dropout2(h))
+            #
+            h = self.ffn(x)
+            x = self.norm3(x + self.dropout3(h))
+        return x, new_cache
 
 class TransformerModelRoPE(nn.Module):
     def __init__(self):
@@ -221,17 +270,33 @@ class TransformerModelRoPE(nn.Module):
             x = layer(x, src_mask)
         return x
 
-    def decode_step(self, tgt, memory, tgt_mask, memory_mask): 
+    def decode_step(self, tgt, memory, tgt_mask, memory_mask, kv_cache=None): 
         #不加这个self.scale缩放，embedding 幅值太大，位置编码被淹没，位置信息失效 → 模型分不清语序，翻译错乱
         # decoder 里面 q、k 要使用 RoPE， 这里就不能再使用SinusoidalPositionalEncoding了
         y = self.tgt_embedding(tgt) * self.scale 
-        for layer in self.decoder_layers:
-            y = layer(y, memory, tgt_mask, memory_mask)
+        new_cache = []
+        for i, layer in enumerate(self.decoder_layers):
+            layer_cache = kv_cache[i] if kv_cache is not None else None
+            
+            if layer_cache is not None:
+                offset = layer_cache[0].shape[2] 
+            else:
+                offset = 0             
+            y, updated_layer_cache = layer(y, memory, tgt_mask, memory_mask, kv_cache=layer_cache, offset=offset)
+            new_cache.append(updated_layer_cache)
         logits = self.proj(y)
-        return logits
+        return logits, new_cache
 
     def __call__(self, src, tgt, src_mask, tgt_mask, memory_mask): 
         memory = self.encode(src, src_mask)
-        logits = self.decode_step(tgt, memory, tgt_mask, memory_mask)
+        logits, _ = self.decode_step(tgt, memory, tgt_mask, memory_mask)
         return logits
+
+    def init_kv_cache(self, batch_size):
+        cache = []
+        for _ in range(NUM_LAYER):
+            k_cache = mx.zeros((batch_size, NUM_HEAD, 0, DIM_MODEL//NUM_HEAD))
+            v_cache = mx.zeros((batch_size, NUM_HEAD, 0, DIM_MODEL//NUM_HEAD))
+            cache.append((k_cache,v_cache))
+        return cache
 

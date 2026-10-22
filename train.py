@@ -1,11 +1,13 @@
 import sys
 import os
+import time
 import mlx.core as mx
 import mlx.nn as nn
 from mlxTFdataset import *
 from mlxTransformer import *
 from loader import *
 
+# defalut
 train_epochs = 10
 
 # 第 src 列为源文， 第 tgt 列为目标文
@@ -37,7 +39,7 @@ def train():
     print("In Debug Mode: ", DEBUG)
     train_data = data.batches
     # 原生 Adam 固定学习率很难训 Transformer。一般用 warmup + decay。
-    lr_scheduler = optim.linear_schedule(init=0.0, end=1e-3, steps=100)
+    lr_scheduler = optim.linear_schedule(init=0.0, end=LEARNING_RATE, steps=100)
     #optimizer = optim.AdamW(learning_rate=lr_scheduler)
     optimizer = optim.Muon(learning_rate=lr_scheduler, weight_decay=1e-4)
     #optimizer = optim.Lion(learning_rate=lr_scheduler, weight_decay=1e-4)
@@ -55,11 +57,11 @@ def train():
             # 惰性求值，必须执行！
             mx.eval(loss, model.parameters(), optimizer.state)
 
-            print(f"\riter {i+1}  / {epoch+1:3d} / {train_epochs} | LR: {optimizer.learning_rate:9f}", end="")
+            print(f"\riter {i+1} / {epoch+1:3d} / {train_epochs} | LR: {optimizer.learning_rate:9f}", end="")
             #break
 
         t2 = time.perf_counter()
-        print(f" | Epoch {epoch+1:3d} | Duration: {(t2 - t1):.2f} | Loss: {loss.item():.4f}")
+        print(f" | {time.strftime('%H:%M')} | Epoch {epoch+1:3d} | Duration: {(t2 - t1):.2f} | Loss: {loss.item():.4f}")
         if epoch < 10 or (epoch+1) % 2 == 0:  
             model.save_weights(model_path)
 
@@ -67,19 +69,17 @@ def train():
 #
 if __name__ == "__main__":   
     if len(sys.argv) == 1:
-        train_epochs = 1
+        train_epochs = train_epochs
     #
     if len(sys.argv) == 2:
         arg_1 = sys.argv[1]
-        print(arg_1)
         if arg_1.isdigit():
             train_epochs = int(arg_1)
     #
-    if os.path.exists(model_path):
-        print("model is loading ...")
-        model.load_weights(model_path)
-
     print(f"train_epochs: {train_epochs}")
+    t_start = time.perf_counter()
     train()
+    t_stop = time.perf_counter()
+    print(f"average time: {((t_stop - t_start)/float(train_epochs)):.2f}")
 
 

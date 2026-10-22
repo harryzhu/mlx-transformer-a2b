@@ -4,10 +4,6 @@ import csv
 from util import *
 
 poetry_file = "/Users/harry/dev/ai/t04/data/poetry.csv"
-# max_lines 控制从全量数据集里面挑选出来的行数，依据设备的显存和期望的时间来确定
-# 这些挑选出来的数据会写入 data/data_train.csv ，后续被 train 函数读取
-max_lines = 8000
-
                 
 def poetry_zh_zh_dataset(in_path=poetry_file, out_path=f'data/data_poetry.csv'):
     with open(out_path, "w")as fwcsv:
@@ -20,14 +16,16 @@ def poetry_zh_zh_dataset(in_path=poetry_file, out_path=f'data/data_poetry.csv'):
             for row in csv_reader:
                 sent_zh = row['tgt']
                 sent_en = row['src']
-                if len(sent_en) < 2:
-                    continue
-                if len(sent_zh) < 2:
-                    continue
+                sent_zh = clean_cht_line(sent_zh)
+                sent_en = clean_cht_line(sent_en)
+                
                 saverows.append([sent_en, sent_zh])
                 if i % 10000 == 0:
                     csvWriter.writerows(saverows)
                     saverows = []
+                if i >= 200000:
+                    break
+                i += 1
               
             csvWriter.writerows(saverows)
                 

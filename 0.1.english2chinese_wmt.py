@@ -3,7 +3,7 @@ import re
 import csv
 from util import *
 
-en_zh_file = "/Users/harry/dev/ai/t03/data/modelscope/iic/WMT-Chinese-to-English-Machine-Translation-Training-Corpus/wmt_zh_en_training_corpus.csv"
+en_zh_file = "/Volumes/HDD4/_models/modelscope/iic/WMT-Chinese-to-English-Machine-Translation-Training-Corpus/wmt_zh_en_training_corpus.csv"
 
                   
 
@@ -36,7 +36,14 @@ def wmt_en_zh_dataset(in_path=en_zh_file, out_path=f'data/data_wmt.csv'):
                 if is_startswith(sent_zh,["。","」","、","，","；","–","…","“”","–","——","＃","Idon","：","Youcan","QUOTE","VI","1","2","3","4","5","6","7","8","9","0","#","９","７","６","５","４","３","２","１","①","’’"]):
                     continue
                             
+                sent_en = clean_cht_line(sent_en)
+                sent_zh = clean_cht_line(sent_zh)
+
                 if has_chinese(sent_en):
+                    continue
+                if has_alpha(sent_zh):
+                    continue
+                if has_digit(sent_zh):
                     continue
 
                 dup_key = sent_en.replace(" ","")
@@ -59,7 +66,7 @@ def wmt_en_zh_dataset(in_path=en_zh_file, out_path=f'data/data_wmt.csv'):
                     saverows = []
                     print(i)
                 # comment the following 2 lines as you need    
-                if i > 1000000:
+                if i > 200000:
                     break
 
                 i += 1

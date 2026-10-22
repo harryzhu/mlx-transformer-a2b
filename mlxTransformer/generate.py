@@ -13,25 +13,47 @@ from mlxTFdataset.config import *
 from mlxTFdataset.mask import *
    
 
-def generate(model, src, use_greedy = False, max_gen_len=100, penalty="frequency"):
+def generate(model, src, use_greedy = False, max_gen_len=128, penalty="frequency"):
     # 推理模式
     model.eval()
     src = mx.array(src, dtype=mx.int32)
     B = src.shape[0]
+    print("src: ",src.shape)
     src_mask = mlx_make_src_pad_mask(src)
     mem_mask = src_mask
 
     memory = model.encode(src, src_mask)
     tgt_gen = mx.array([[B_O_S]], dtype=mx.int32)
+    done = mx.zeros((B, 1), dtype=mx.bool_)
 
-    temperature = 0.95
+    enable_kv_cache = True
+    #enable_kv_cache = False
+    kv_cache = model.init_kv_cache(B)
+
+    temperature = 0.9
     top_p = 0.9
     repetition_penalty = 1.2
-    frequency_penalty = 0.2
+    frequency_penalty = 0.15
     
-    for _ in range(max_gen_len):
-        tgt_mask = mlx_make_tgt_causal_pad_mask(tgt_gen)
-        logits = model.decode_step(tgt_gen, memory, tgt_mask, mem_mask)
+    for i in range(max_gen_len):
+        if enable_kv_cache == True:
+            if i == 0:
+                input_ids = tgt_gen
+            else:
+                input_ids = next_id
+            full_mask = mlx_make_tgt_causal_pad_mask(tgt_gen)
+            step_mask = full_mask[:, :, -1:, :]
+            logits, kv_cache = model.decode_step(input_ids, memory, step_mask, mem_mask, kv_cache=kv_cache)
+        else:
+            tgt_mask = mlx_make_tgt_causal_pad_mask(tgt_gen)
+            # tgt_mask: [1,1,L,L]
+            logits, _ = model.decode_step(tgt_gen, memory, tgt_mask, mem_mask, kv_cache=None)
+            #  logits: [1, 已有字符长度, VOCAB_SIZE_TGT]
+        
+        # print("tgt_gen shape:", tgt_gen.shape)
+        # print("mask shape:", full_mask.shape)
+        #logits.at[:, E_O_S].add(-1.1) 
+            
         #取最后一个位置的 logits， 预测下一个token
         next_logit = logits[:,-1,:]
         if use_greedy:
@@ -55,7 +77,12 @@ def generate(model, src, use_greedy = False, max_gen_len=100, penalty="frequency
                     prev_tokens=prev_tokens
                 )
         tgt_gen = mx.concatenate([tgt_gen, next_id], axis=-1)
-        if mx.all(next_id == E_O_S).item():
+
+        new_eos = (next_id == E_O_S)
+        done = mx.logical_or(done, new_eos)
+        # if mx.all(next_id == E_O_S).item():
+        # if next_id[0,0].item() == E_O_S:
+        if mx.all(done).item():
             break
     return tgt_gen
 

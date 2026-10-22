@@ -11,7 +11,7 @@ def infer(sentence):
     src_tokens = mx.array(src_tokens, dtype=mx.int32)
     src_tokens = src_tokens[None,:]
     #print("src_tokens: ", src_tokens, src_tokens.shape)
-    gen_ids = generate(model, src=src_tokens)
+    gen_ids = generate(model, src=src_tokens, use_greedy = False)
     gen_ids = gen_ids.tolist()
     
     #print("-----")
@@ -27,9 +27,10 @@ def infer(sentence):
 
 
 examples = []
-examples.append("do not imagine that mathematics is hard and crabbed and repulsive to common sense , it is merely the etherealization of common sense .")
+#examples.append("do not be afraid to haggle on price - especially if you are not booking during the school holidays . ")
 
-examples.append("未得君书")
+#examples.append("this is where the entertainer holds an envelope to his head, gives the answer, and then opens the envelope and reads the question.")
+examples.append("hello what to use for bait , do not be afraid to haggle on price.")
 
 for i in range(len(examples)):
     infer(examples[i])

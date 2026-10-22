@@ -243,14 +243,6 @@ class TransformerModelRoPE(nn.Module):
             DecoderLayer(norm_first=True, rope=self.rope)
             for _ in range(NUM_LAYER)
             ]
-    
-    def encode_bak(self, src, src_mask):
-        #不加这个self.scale缩放，embedding 幅值太大，位置编码被淹没，位置信息失效 → 模型分不清语序，翻译错乱
-        x = self.src_embedding(src) * self.scale
-        x = x + self.src_pos_enc(mx.arange(src.shape[-1]))
-        for layer in self.encoder_layers:
-            x = layer(x, src_mask)
-        return x
 
     def encode(self, src, src_mask):
         #不加这个self.scale缩放，embedding 幅值太大，位置编码被淹没，位置信息失效 → 模型分不清语序，翻译错乱

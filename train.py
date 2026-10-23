@@ -49,7 +49,8 @@ def train():
     for epoch in range(train_epochs):
         t1 = time.perf_counter()
         for i,batch in enumerate(train_data):
-
+            # print("batch.src: ", batch.src[0])
+            # print("batch.tgt: ", batch.tgt[0])
             loss, grads = loss_and_grad(model, batch.src, batch.tgt_in, batch.tgt_label,batch.src_mask,batch.tgt_mask)
             # 梯度裁剪，防止爆炸
             grads, _ = optim.clip_grad_norm(grads, max_norm=1.0)

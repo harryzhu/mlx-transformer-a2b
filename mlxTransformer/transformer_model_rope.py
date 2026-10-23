@@ -49,6 +49,9 @@ class EncoderLayer(nn.Module):
             x = self.norm1(x + self.dropout1(h))
             h = self.ffn(x)
             x = self.norm2(x + self.dropout2(h))
+
+        # print("x:", x.shape)
+        # print("x:", x[0][0])
         return x
 
 class DecoderLayer(nn.Module):
@@ -139,14 +142,14 @@ class DecoderLayer(nn.Module):
 
         if DEBUG:
             bld_check(attn_out, B, L, DIM_MODEL)
-        return self.dropout1(attn_out), new_cache
+        return attn_out, new_cache
 
     def __call__(self, x, memory, tgt_mask, memory_mask, kv_cache=None, offset=0):
         if self.norm_first:
             # Decoder Self-Attention with RoPE
             h = self.norm1(x)
             h, new_cache = self.self_attn_rope(h, tgt_mask, kv_cache=kv_cache, offset=offset)
-            x = x + h
+            x = x + self.dropout1(h)
 
             # Cross Attention
             h = self.norm2(x)
@@ -159,7 +162,7 @@ class DecoderLayer(nn.Module):
             x = x + self.dropout3(h)
         else:
             h, new_cache = self.self_attn_rope(x, tgt_mask, kv_cache=kv_cache, offset=offset)
-            x = self.norm1(x + h)
+            x = self.norm1(x + self.dropout1(h))
             #
             h = self.cross_attn(x, memory, memory, mask=memory_mask)
             x = self.norm2(x + self.dropout2(h))

@@ -30,7 +30,8 @@ examples = []
 #examples.append("do not be afraid to haggle on price - especially if you are not booking during the school holidays . ")
 
 #examples.append("this is where the entertainer holds an envelope to his head, gives the answer, and then opens the envelope and reads the question.")
-examples.append("do not be afraid to haggle on price.")
+#examples.append("do not be afraid to haggle on price.")
+examples.append("The scientific activities of Swedish research groups")
 
 for i in range(len(examples)):
     infer(examples[i])

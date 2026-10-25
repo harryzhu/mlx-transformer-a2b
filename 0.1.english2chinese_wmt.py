@@ -3,14 +3,16 @@ import re
 import csv
 from util import *
 
-en_zh_file = "/Volumes/HDD4/_models/modelscope/iic/WMT-Chinese-to-English-Machine-Translation-Training-Corpus/wmt_zh_en_training_corpus.csv"
+#en_zh_file = "/Volumes/HDD4/_models/modelscope/iic/WMT-Chinese-to-English-Machine-Translation-Training-Corpus/wmt_zh_en_training_corpus.csv"
+en_zh_file = "data/data_news_commentary.csv"
 
+ptn_eng = re.compile(r'[a-zA-Z0-9]')
                   
 
-def wmt_en_zh_dataset(in_path=en_zh_file, out_path=f'data/data_wmt.csv'):         
+def wmt_en_zh_dataset(in_path=en_zh_file, out_path=f'data/data_news.csv'):         
     firstLetter = []
     with open(out_path, "w")as fwcsv:
-        csvWriter = csv.writer(fwcsv)
+        csvWriter = csv.writer(fwcsv, quoting=csv.QUOTE_ALL)
         with open(in_path, mode="r", encoding="utf-8") as f:
             duplicatelines = {}
             saverows = []
@@ -18,8 +20,15 @@ def wmt_en_zh_dataset(in_path=en_zh_file, out_path=f'data/data_wmt.csv'):
             i = 0
             csv_reader = csv.DictReader(f)
             for row in csv_reader:
-                sent_zh = row['0'].strip()
-                sent_en = row['1'].strip()
+                # sent_zh = row['0'].strip()
+                # sent_en = row['1'].strip()
+                sent_zh = row['tgt'].strip()
+                sent_en = row['src'].strip()
+
+                has_eng = re.findall(r'[a-zA-Z0-9]',sent_en)
+                if len(has_eng) < 5:
+                    print(sent_en)
+                    continue
 
                 sent_zh = sent_zh.replace(" ","")
                 if sent_zh == "" or sent_en == "":

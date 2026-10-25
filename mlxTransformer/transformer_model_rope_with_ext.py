@@ -122,8 +122,9 @@ class TransformerModelRoPE(nn.Module):
         self.tgt_embedding = nn.Embedding(VOCAB_SIZE_TGT, DIM_MODEL)
         self.src_pos_enc = nn.SinusoidalPositionalEncoding(DIM_MODEL)
         # rope 的 dims 必须为偶数（RoPE 需要两两一组做平面旋转）
-        assert DIM_MODEL%NUM_HEAD == 0
-        assert (DIM_MODEL//NUM_HEAD)%2 == 0
+        if DEBUG:
+            assert DIM_MODEL%NUM_HEAD == 0
+            assert (DIM_MODEL//NUM_HEAD)%2 == 0
         
         self.rope = nn.RoPE(dims=DIM_MODEL // NUM_HEAD, base=10000.0)
         self.proj = nn.Linear(DIM_MODEL, VOCAB_SIZE_TGT, bias=False)

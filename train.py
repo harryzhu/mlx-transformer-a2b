@@ -24,7 +24,7 @@ def loss_fn(model, src, tgt_in, tgt_label, src_mask, tgt_mask):
     B, T, V = logits.shape
     logits_flat = logits.reshape(-1, V)
     labels_flat = tgt_label.reshape(-1)
-    ce = nn.losses.cross_entropy(logits_flat, labels_flat, label_smoothing=0.2, reduction="none")
+    ce = nn.losses.cross_entropy(logits_flat, labels_flat, label_smoothing=0.1, reduction="none")
     none_pad_mask = (labels_flat != PAD)
     ce = ce * none_pad_mask
     loss = mx.sum(ce) / mx.sum(none_pad_mask)

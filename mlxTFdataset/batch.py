@@ -23,4 +23,26 @@ class Batch:
         tgt = seq_padding(tgt)
         self.tgt = mx.array(tgt, dtype=mx.int32)
         self.ntokens = (self.tgt_label != pad).sum()
+
+class GptBatch:
+    def __init__(self, src, pad=PAD):
+        full_seq = seq_padding(src)
+        # print("==src==", src.shape)
+        x = full_seq[:,:-1] # 输入
+        self.tokens = x
+        # print("==x==", self.tokens.shape)
+        self.labels = full_seq[:, 1:] #标签，错动一位
+        B, T_x = self.tokens.shape
+        # attn_mask 是给 input 用的（即x）
+        self.attn_mask = mlx_make_causal_mask(T_x, self.tokens)
+        # loss_mask 是给 label 用的
+        self.loss_mask = mlx_make_loss_mask(self.labels, ID_ZH, PAD)
+        # print("==attn_mask==", self.attn_mask.shape)
+        # print("==loss_mask==", self.loss_mask.shape)
         
+
+
+
+
+
+

@@ -68,7 +68,7 @@ def train():
 
 
 #
-if __name__ == "__main__":   
+if __name__ == "__main__":  
     if len(sys.argv) == 1:
         train_epochs = train_epochs
     #
@@ -77,6 +77,8 @@ if __name__ == "__main__":
         if arg_1.isdigit():
             train_epochs = int(arg_1)
     #
+    print("config: ENABLE_GPT: ", ENABLE_GPT)
+    assert ENABLE_GPT == False, "pls set ENABLE_GPT=False in config.py"
     print(f"train_epochs: {train_epochs}")
     t_start = time.perf_counter()
     train()

@@ -1,5 +1,6 @@
 from .config import *
 from .generate import *
+from .gpt_generate import *
 from .transformer_model_sin import *
 #
 if ENABLE_EXT:
@@ -8,5 +9,7 @@ if ENABLE_EXT:
 else:
 	from .transformer_model_rope import *
 
+if ENABLE_GPT:
+	from .gpt_model_decoder_only import *
 
 

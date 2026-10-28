@@ -55,6 +55,13 @@ def has_alpha(words):
             return True
     return False
 
+def ratio_alpha(words):
+    nos = words.replace(" ","")
+    len_nos = len(nos)
+    a = RE_ALPHA_CHAR.findall(nos)
+    r = float(len(a)) / float(len_nos)
+    return r
+
 def has_digit(words):
     for w in words:
         if RE_DIGIT_CHAR.search(w) is not None:
